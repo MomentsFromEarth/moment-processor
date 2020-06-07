@@ -1,0 +1,67 @@
+version: 2
+jobs:
+  build:
+    working_directory: /mfe-moment-processor
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: 
+          name: Create credentials file
+          command: echo $CREDS | base64 -d > ./creds.json
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --no-cache py-pip=9.0.0-r1
+            pip install awscli==1.14.29
+      - run:
+          name: Build application Docker image
+          command: |
+            docker build -t mfe-moment-processor .
+      - deploy:
+          name: Push application Docker image
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+
+              CLUSTER='default'
+              FAMILY='mfe-moment-processor'
+              DOCKER_IMAGE='mfe-moment-processor'
+              TASK='mfe-moment-processor'
+              SERVICE='mfe-moment-processor'
+              VERSION='latest'
+              TASK_ROLE_ARN='arn:aws:iam::776913033148:role/mfe-moment-processor-role'
+              TASK_EXECUTION_ROLE_ARN='arn:aws:iam::776913033148:role/mfe-moment-processor-role'
+
+              # Login to AWS
+              aws configure set region $AWS_REGION
+              $(aws ecr get-login --no-include-email)
+
+              # Tag and push docker image
+              docker tag mfe-moment-processor:latest $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/$DOCKER_IMAGE:$VERSION
+              docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$DOCKER_IMAGE:$VERSION
+
+              # Create task for docker deploy
+              task_template='[
+                {
+                  "name": "%s",
+                  "logConfiguration": {
+                    "logDriver": "awslogs",
+                      "options": {
+                          "awslogs-group": "/aws/ecs/mfe-moment-processor",
+                          "awslogs-region": "us-east-1",
+                          "awslogs-stream-prefix": "latest"
+                      }
+                  },
+                  "image": "%s.dkr.ecr.us-east-1.amazonaws.com/%s:%s",
+                  "essential": true
+                }
+              ]'
+
+              task_def=$(printf "$task_template" $TASK $AWS_ACCOUNT_ID $TASK $VERSION)
+
+              # Register task definition
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$FAMILY" --task-role-arn "$TASK_ROLE_ARN" --execution-role-arn="$TASK_EXECUTION_ROLE_ARN" --requires-compatibilities="FARGATE" --network-mode="awsvpc" --cpu="1024" --memory="4GB")
+
+              return 0
+            fi
