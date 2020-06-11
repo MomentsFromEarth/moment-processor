@@ -1,6 +1,5 @@
-version: 2
 jobs:
-  build:
+  moment-processor-job:
     working_directory: /mfe-moment-processor
     docker:
       - image: docker:17.05.0-ce-git
@@ -65,3 +64,10 @@ jobs:
 
               return 0
             fi
+
+version: 2.1
+workflows:
+  moment-processor-workflow:
+    jobs:
+      - moment-processor-job:
+          context: AWS
