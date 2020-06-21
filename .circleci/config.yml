@@ -60,7 +60,7 @@ jobs:
               task_def=$(printf "$task_template" $TASK $AWS_ACCOUNT_ID $TASK $VERSION)
 
               # Register task definition
-              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$FAMILY" --task-role-arn "$TASK_ROLE_ARN" --execution-role-arn="$TASK_EXECUTION_ROLE_ARN" --requires-compatibilities="FARGATE" --network-mode="awsvpc" --cpu="2048" --memory="16GB")
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$FAMILY" --task-role-arn "$TASK_ROLE_ARN" --execution-role-arn="$TASK_EXECUTION_ROLE_ARN" --requires-compatibilities="FARGATE" --network-mode="awsvpc" --cpu="4096" --memory="24GB")
 
               return 0
             fi
