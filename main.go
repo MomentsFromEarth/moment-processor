@@ -37,33 +37,25 @@ var currMomentID string
 
 var creds *credentials
 
-type momentUpdateData struct {
-	Auth struct {
-		AccessKeyID     string `json:"accessKeyId"`
-		SecretAccessKey string `json:"secretAccessKey"`
-	} `json:"auth"`
-	Data moment `json:"data"`
-}
-
 type moment struct {
-	MomentID         string  `json:"moment_id"`
-	Title            string  `json:"title"`
-	Description      *string `json:"description"`
-	OriginalFilename string  `json:"original_filename"`
-	Type             string  `json:"type"`
-	Size             int32   `json:"size"`
-	QueueID          string  `json:"queue_id"`
-	Status           string  `json:"status"`
-	Creator          string  `json:"creator"`
-	Created          int64   `json:"created"`
-	Updated          int64   `json:"updated"`
-	HostID           string  `json:"host_id"`
+	MFEKey      string `json:"mfe_key"`
+	MomentID    string `json:"moment_id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Filename    string `json:"filename"`
+	Type        string `json:"type"`
+	Size        int32  `json:"size"`
+	QueueID     string `json:"queue_id"`
+	Status      string `json:"status"`
+	Creator     string `json:"creator"`
+	Created     int64  `json:"created"`
+	Updated     int64  `json:"updated"`
+	HostID      string `json:"host_id"`
 }
 
 type credentials struct {
-	AWS struct {
-		AccessKeyID     string `json:"accessKeyId"`
-		SecretAccessKey string `json:"secretAccessKey"`
+	MFE struct {
+		APIKey string `json:"api_key"`
 	}
 	YouTube struct {
 		Scopes       []string `json:"scopes"`
@@ -113,7 +105,7 @@ func uploadToYouTube(momentID string, videoData *aws.WriteAtBuffer) (string, err
 		upload.Snippet.Tags = strings.Split(keywords, ",")
 	}
 
-	call := service.Videos.Insert("snippet,status", upload)
+	call := service.Videos.Insert([]string{"snippet", "status"}, upload)
 	file := bytes.NewReader(videoData.Bytes())
 
 	res, err := call.Media(file).Do()
@@ -156,14 +148,10 @@ func deleteMomentJob(jobHandle string) (*sqs.DeleteMessageOutput, error) {
 }
 
 func updateMomentData(m *moment) error {
-	mud := &momentUpdateData{}
-	mud.Auth.AccessKeyID = creds.AWS.AccessKeyID
-	mud.Auth.SecretAccessKey = creds.AWS.SecretAccessKey
-	mud.Data = *m
-	updatedMoment, err := json.Marshal(*mud)
+	updatedMoment, err := json.Marshal(m)
 	check(err, "There was a problem creating update moment json")
 	fmt.Println(string(updatedMoment))
-	url := fmt.Sprintf("https://api.momentsfrom.earth/moments/%v", m.MomentID)
+	url := fmt.Sprintf("https://api.momentsfrom.earth/moment/%v/callback?api_key=%v", m.MomentID, creds.MFE.APIKey)
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(updatedMoment))
 	check(err, "There was a problem updating the moment")
 	req.Header.Add("Content-Type", "application/json")
