@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -66,7 +67,7 @@ type credentials struct {
 	}
 }
 
-func uploadToYouTube(momentID string, videoData *aws.WriteAtBuffer) (string, error) {
+func uploadToYouTube(momentID string, videoData *os.File) (string, error) {
 	ctx := context.Background()
 
 	config := &oauth2.Config{
@@ -106,20 +107,31 @@ func uploadToYouTube(momentID string, videoData *aws.WriteAtBuffer) (string, err
 	}
 
 	call := service.Videos.Insert([]string{"snippet", "status"}, upload)
-	file := bytes.NewReader(videoData.Bytes())
+	data, _ := ioutil.ReadFile(videoData.Name())
+	file := bytes.NewReader(data)
 
 	res, err := call.Media(file).Do()
 
 	return res.Id, err
 }
 
-func downloadVideo(queueID string) (*aws.WriteAtBuffer, error) {
-	videoData := aws.WriteAtBuffer{}
-	_, err := s3Downloader.Download(&videoData, &s3.GetObjectInput{
+func downloadVideo(queueID string) (*os.File, error) {
+	// videoData := aws.WriteAtBuffer{}
+
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// defer os.Remove(file.Name())
+
+	fmt.Println("Temp File")
+	fmt.Println(file.Name())
+
+	_, err = s3Downloader.Download(file, &s3.GetObjectInput{
 		Bucket: aws.String(qBucket),
 		Key:    aws.String(queueID),
 	})
-	return &videoData, err
+	return file, err
 }
 
 func archiveVideo(queueID string) (*s3.CopyObjectOutput, error) {
@@ -191,6 +203,8 @@ func processMomentJob(m *moment, jobHandle string) error {
 	videoData, err := downloadVideo(m.QueueID)
 	check(err, "There was a problem downloading video from S3")
 	fmt.Println("Download video from S3: Done")
+
+	defer os.Remove(videoData.Name())
 
 	fmt.Println("Upload video to YouTube: Start")
 	youtubeID, err := uploadToYouTube(m.MomentID, videoData)
