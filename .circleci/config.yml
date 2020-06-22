@@ -54,6 +54,7 @@ jobs:
                   },
                   "memory": 20480,
                   "memoryReservation": 16384,
+                  "cpu": 2048,
                   "image": "%s.dkr.ecr.us-east-1.amazonaws.com/%s:%s",
                   "essential": true
                 }
