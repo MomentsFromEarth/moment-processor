@@ -52,8 +52,8 @@ jobs:
                           "awslogs-stream-prefix": "latest"
                       }
                   },
-                  "memory": 20480,
-                  "memoryReservation": 16384,
+                  "memory": 28672,
+                  "memoryReservation": 24567,
                   "cpu": 2048,
                   "image": "%s.dkr.ecr.us-east-1.amazonaws.com/%s:%s",
                   "essential": true
